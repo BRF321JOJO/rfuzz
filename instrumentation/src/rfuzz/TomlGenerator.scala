@@ -20,6 +20,7 @@ import scala.collection.mutable
 //       -> maybe move into separate file
 object TomlGenerator {
   case class TestInput(name: String, width: Int)
+  case class TestOutput(name: String, width: Int)
   case class DebugInfo(filename: String, line: Int, col: Int)
   def getWidth(port: Port) : Int = {
     port.tpe match {
@@ -47,6 +48,25 @@ object TomlGenerator {
     // sort decending by width (TODO: is sortWith stable?)
     possible_inputs.flatten.toSeq.sortWith(_.width > _.width)
   }
+
+  def getFuzzingOutputs(ports: Seq[Port]) : Seq[TestOutput] = {
+    val possible_outputs : Iterable[Option[TestOutput]] =
+      for(port <- ports) yield {
+        port.direction match {
+          case Output => {
+            if(port.name != "clock" && port.name != "reset") {
+              Some(TestOutput(port.name, getWidth(port)))
+            } else { None }
+          }
+          case _ => None
+        }
+      }
+    // sort decending by width (TODO: is sortWith stable?)
+    possible_outputs.flatten.toSeq.sortWith(_.width > _.width)
+  }
+
+
+
   def parseFileInfo(info: FileInfo) : Option[DebugInfo] = {
     val pattern = raw":([^@:]+)@(\d+)\.(\d+)".r.unanchored
     // yosys: gates.v:5.16-5.21
@@ -207,6 +227,16 @@ object TomlGenerator {
       out.println()
     }
     out.println()
+
+
+    for(outp <- getFuzzingOutputs(top.ports)) {
+      out.println(s"""[[output]]""")
+      out.println(s"""name = "${outp.name}$q""")
+      out.println(s"""width = ${outp.width}""")
+      out.println()
+    }
+    out.println()
+
 
     val muxConds = mutable.LinkedHashSet.empty[Expression]
     for ((config, annos) <- profiledSignals) {

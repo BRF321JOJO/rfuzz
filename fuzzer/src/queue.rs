@@ -196,3 +196,4 @@ impl Queue {
 		file.write_all(j.as_bytes()).expect("Failed to write entry to file!");
 	}
 }
+

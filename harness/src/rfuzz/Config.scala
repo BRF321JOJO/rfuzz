@@ -5,6 +5,7 @@ package rfuzz
 
 case class DUTConfig(src: String, name: String,
                      input: Seq[Config.Input], inputBits: Int,
+										 output: Seq[Config.Output], outputBits: Int,
                      coveragePorts: Seq[Config.Port],
                      coverageSignals: Seq[Config.Coverage], coverageBits: Int)
 
@@ -21,9 +22,10 @@ object Config {
 	case class General(filename: String, instrumented: String, top: String, timestamp: OffsetDateTime)
 	case class Coverage(port: String, name: String, index: Int, filename: String, line: Int, column: Int, human: String)
 	case class Input(name: String, width: Int)
+	case class Output(name: String, width: Int)
 	case class Port(name: String, width: Int)
 	case class Counter(name: String, width: Int, max: Int, scale: Boolean, index: Int, signal: Int, fail: Boolean = false)
-	case class Test(general: General, coverage: List[Coverage], input: List[Input], port: List[Port])
+	case class Test(general: General, coverage: List[Coverage], input: List[Input], output: List[Output], port: List[Port])
 
 	implicit val booleanCodec: toml.Codec[Boolean] = toml.Codec[Boolean]( {
 		case toml.Value.Bool(value) => Right(value)
@@ -65,10 +67,12 @@ object Config {
 		val name = toml.general.top
 		val input = toml.input
 		val inputBits = input.map{ case input: Input => input.width }.reduce(_+_)
+		val output = toml.output
+		val outputBits = output.map{ case output: Output => output.width }.reduce(_+_)
 		val coveragePorts = toml.port
 		val coverageSignals = toml.coverage
 		val coverageBits = coverageSignals.size
-		new DUTConfig(src, name, input, inputBits, coveragePorts, coverageSignals, coverageBits)
+		new DUTConfig(src, name, input, inputBits, output, outputBits, coveragePorts, coverageSignals, coverageBits)
 	}
 	def dumpCounters(out: java.io.PrintWriter, counters: Seq[Counter]) = {
 		val q = "\"" // Workaround for Vim Scala syntax highlighting
