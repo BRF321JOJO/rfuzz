@@ -13,7 +13,7 @@ class DUTBlackBox(conf: DUTConfig) extends HasBlackBoxInline {
 		ListMap("clock" -> Input(Clock()), "reset" -> Input(Bool()),
 		        "metaReset" -> Input(Bool())) ++
 		conf.input.map{ case inp => inp.name -> Input(UInt(inp.width.W)) } ++
-		conf.output.map{ case outp => outp.name -> Input(UInt(outp.width.W)) } ++
+		conf.output.map{ case outp => outp.name -> Output(UInt(outp.width.W)) } ++
 		conf.coveragePorts.map{ case port => port.name -> Output(UInt(port.width.W)) }
 		// TODO: is it ok to just ignore the output?
 	}))
@@ -28,6 +28,7 @@ class DUT(conf: DUTConfig) extends Module {
 		val outputs = Output(UInt(conf.outputBits.W))
 		val coverage = Output(Vec(conf.coverageBits, Bool()))
 	})
+
 	val bb = Module(new DUTBlackBox(conf))
 	val pins = bb.io.elements
 
@@ -45,11 +46,10 @@ class DUT(conf: DUTConfig) extends Module {
 
 	//TODO: Brandon
 	//extract outputs
-	var right = conf.outputBits - 1
-	conf.output.map{ case Config.Output(n,w) =>
-		io.outputs(right, right - w + 1) := pins(n)
-		right = right - w
+	val allPinsList = conf.output.map{ case Config.Output(n,w) =>
+		pins(n).asInstanceOf[UInt]
 	}
+	io.outputs := Cat(allPinsList)
 
 	// connect coverage
 	val coverage = for(sig <- conf.coverageSignals) yield {

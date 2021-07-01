@@ -9,13 +9,14 @@ import chisel3.util._
 // The adaptor works on a byte level and thus keeps us sane by not
 // having to reason about endianess in the C++ toplevel.
 
-class VerilatorHarnessIO(input_byte_count: Int, coverage_byte_count: Int) extends Bundle {
+class VerilatorHarnessIO(input_byte_count: Int, output_byte_count: Int, coverage_byte_count: Int) extends Bundle {
 	val input_bytes = Input(Vec(input_byte_count, UInt(8.W)))
+	val output_bytes = Output(Vec(output_byte_count, UInt(8.W)))
 	val coverage_bytes = Output(Vec(coverage_byte_count, UInt(8.W)))
 	val meta_reset = Input(Bool())
 	// FIXME: remove cloneType with new chisel
 	override def cloneType =
-          new VerilatorHarnessIO(input_byte_count, coverage_byte_count).asInstanceOf[this.type]
+          new VerilatorHarnessIO(input_byte_count, output_byte_count, coverage_byte_count).asInstanceOf[this.type]
 }
 
 class VerilatorHarness(dut_conf: DUTConfig, counters: collection.mutable.ArrayBuffer[Config.Counter]) extends Module {
@@ -35,10 +36,12 @@ class VerilatorHarness(dut_conf: DUTConfig, counters: collection.mutable.ArrayBu
 	// the cycles count in front of every coverage item takes 16bit
 	val coverage_byte_count = normalize_to_bytes(coverage_bits + 2 * 8) - 2
 	val input_byte_count = normalize_to_bytes(dut_conf.inputBits)
+	val output_byte_count = normalize_to_bytes(dut_conf.outputBits)
 	println(s"coverage_byte_count: $coverage_byte_count")
 	println(s"input_byte_count: $input_byte_count")
+	println(s"output_byte_count: $output_byte_count")
 
-	val io = this.IO(new VerilatorHarnessIO(input_byte_count, coverage_byte_count))
+	val io = this.IO(new VerilatorHarnessIO(input_byte_count, output_byte_count, coverage_byte_count))
 	val dut = Module(new DUT(dut_conf))
 	dut.io.meta_reset := this.io.meta_reset
 
@@ -46,6 +49,15 @@ class VerilatorHarness(dut_conf: DUTConfig, counters: collection.mutable.ArrayBu
 	val input_bytes = Cat(io.input_bytes)
 	val input_width = input_byte_count * 8
 	dut.io.inputs := input_bytes(input_width-1, input_width - dut_conf.inputBits)
+
+	// outputs
+	var output_bytes = dut.io.outputs
+	val output_width = output_byte_count * 8
+	output_bytes = Cat(output_bytes, 0.U((output_width - dut_conf.outputBits).W))
+	for (i <- 0 until output_byte_count) {
+		io.output_bytes(i) := output_bytes(i*8 + 7, i*8)
+	}
+
 
 	// coverage
 	val connect_coverage = true.B
@@ -95,10 +107,11 @@ class E2ECoverageHarness(dut_conf: DUTConfig, counters: collection.mutable.Array
 	// the cycles count in front of every coverage item takes 16bit
 	val coverage_byte_count = normalize_to_bytes(coverage_bits + 2 * 8) - 2
 	val input_byte_count = normalize_to_bytes(dut_conf.inputBits)
+	val output_byte_count = normalize_to_bytes(dut_conf.outputBits)
 	println(s"coverage_byte_count: $coverage_byte_count")
 	println(s"input_byte_count: $input_byte_count")
 
-	val io = this.IO(new VerilatorHarnessIO(input_byte_count, coverage_byte_count))
+	val io = this.IO(new VerilatorHarnessIO(input_byte_count, output_byte_count, coverage_byte_count))
 	val dut = Module(new DUT(dut_conf))
 	dut.io.meta_reset := this.io.meta_reset
 
@@ -106,6 +119,14 @@ class E2ECoverageHarness(dut_conf: DUTConfig, counters: collection.mutable.Array
 	val input_bytes = Cat(io.input_bytes)
 	val input_width = input_byte_count * 8
 	dut.io.inputs := input_bytes(input_width-1, input_width - dut_conf.inputBits)
+
+	// outputs
+	var output_bytes = Cat(dut.io.outputs)
+	val output_width = output_byte_count * 8
+	output_bytes = Cat(output_bytes, 0.U((output_width - dut_conf.outputBits).W))
+	for (i <- 0 until output_byte_count) {
+		io.output_bytes(i) := output_bytes(i*8 + 7, i*8)
+	}
 
 	// coverage
 	val connect_coverage = true.B
