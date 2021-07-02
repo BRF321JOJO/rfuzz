@@ -54,7 +54,8 @@ object TomlGenerator {
       for(port <- ports) yield {
         port.direction match {
           case Output => {
-            if(port.name != "clock" && port.name != "reset") {
+            if(port.name != "clock" && port.name != "reset" &&
+              port.name != "assert_out" && port.name != "auto_cover_out") {
               Some(TestOutput(port.name, getWidth(port)))
             } else { None }
           }
