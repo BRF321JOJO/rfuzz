@@ -28,9 +28,13 @@ template = """
 
 static constexpr size_t CoverageSize = {cov_size};
 static constexpr size_t InputSize    = {input_size};
+static constexpr size_t OutputSize   = {output_size};
 
 static inline void apply_input(TOP_TYPE* top, const uint8_t* input) {{
 {apply_input}
+}}
+static inline void read_output(TOP_TYPE* top, uint8_t* output) {{
+{read_output}
 }}
 static inline void read_coverage(TOP_TYPE* top, uint8_t* coverage) {{
 {read_coverage}
@@ -68,17 +72,21 @@ if __name__ == '__main__':
 	conf = toml.loads(open(conf_toml).read())
 	input_bits = sum(ii['width'] for ii in conf['input'])
 	input_size = bits_to_size(input_bits)
+	output_bits = sum(ii['width'] for ii in conf['output'])
+	output_size = bits_to_size(output_bits)
 	cov_bits = sum(counter['width'] for counter in conf['counter'])
 	# the cycles count in front of the coverage feedback takes 16bit
 	cov_size = bits_to_size(cov_bits + 2 * 8) - 2
 
 	i_line = "\ttop->io_input_bytes_{0: <3}  = input[{0: >3}];"
+	o_line = "\toutput[{0: >3}] = top->io_output_bytes_{0};"
 	c_line = "\tcoverage[{0: >3}] = top->io_coverage_bytes_{0};"
 	dd = { 'conf_toml': conf_toml, 'toplevel': conf['general']['top'],
-	       'cov_size': cov_size, 'input_size': input_size,
+	       'cov_size': cov_size, 'input_size': input_size, 'output_size': output_size,
 	       'apply_input':   "\n".join(i_line.format(ii) for ii in range(input_size)),
+		   'read_output':   "\n".join(o_line.format(ii) for ii in range(output_size)),
 	       'read_coverage': "\n".join(c_line.format(ii) for ii in range(cov_size))
 	}
 
-	output = template.format(**dd)
-	open(header, 'w').write(output)
+	outputData = template.format(**dd)
+	open(header, 'w').write(outputData)

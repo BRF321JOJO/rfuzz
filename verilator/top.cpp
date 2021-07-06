@@ -69,10 +69,25 @@ static inline void run_test(Simulation& sim, Fuzzer& fuzzer) {
 	sim.top->reset = 0;
 	// run for as many cycles as we get data
 	uint8_t input[InputSize];
+	//CHANGES
+
 	while(fuzzer.pop(input, InputSize)) {
+        for (int i = 0; i < 24; i++) {
+            input[i] = 0;
+        }
+        input[19] = 255;
+
 		apply_input(sim.top, input);
 		sim.step();
 	}
+
+	uint8_t output[OutputSize];
+	read_output(sim.top, output);
+    //fuzzer.push(output, OutputSize);
+
+	//CHANGES
+
+
 	uint8_t coverage[CoverageSize];
 	read_coverage(sim.top, coverage);
 	fuzzer.push(coverage, CoverageSize);
